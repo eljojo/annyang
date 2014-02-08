@@ -49,9 +49,10 @@
   };
 
   // This method receives an array of callbacks to iterate over, and invokes each of them
-  var invokeCallbacks = function(callbacks) {
+  var invokeCallbacks = function(callbacks, args) {
+    if(args === undefined) { args = []; }
     callbacks.forEach(function(callback) {
-      callback.callback.apply(callback.context);
+      callback.callback.apply(callback.context, args);
     });
   };
 
@@ -92,13 +93,13 @@
       // Sets the language to the default 'en-US'. This can be changed with annyang.setLanguage()
       recognition.lang = 'en-US';
 
-      recognition.onstart   = function()      { invokeCallbacks(callbacks.start); };
+      recognition.onstart   = function()      { invokeCallbacks(callbacks.start, arguments); };
 
       recognition.onerror   = function(event) {
-        invokeCallbacks(callbacks.error);
+        invokeCallbacks(callbacks.error, arguments);
         switch (event.error) {
         case 'network':
-          invokeCallbacks(callbacks.errorNetwork);
+          invokeCallbacks(callbacks.errorNetwork, arguments);
           break;
         case 'not-allowed':
         case 'service-not-allowed':
@@ -106,16 +107,16 @@
           autoRestart = false;
           // determine if permission was denied by user or automatically.
           if (new Date().getTime()-lastStartedAt < 200) {
-            invokeCallbacks(callbacks.errorPermissionBlocked);
+            invokeCallbacks(callbacks.errorPermissionBlocked, arguments);
           } else {
-            invokeCallbacks(callbacks.errorPermissionDenied);
+            invokeCallbacks(callbacks.errorPermissionDenied, arguments);
           }
           break;
         }
       };
 
       recognition.onend     = function() {
-        invokeCallbacks(callbacks.end);
+        invokeCallbacks(callbacks.end, arguments);
         // annyang will auto restart if it is closed automatically and not by user action.
         if (autoRestart) {
           // play nicely with the browser, and never restart annyang automatically more than once per second
@@ -129,7 +130,7 @@
       };
 
       recognition.onresult  = function(event) {
-        invokeCallbacks(callbacks.result);
+        invokeCallbacks(callbacks.result, arguments);
         var results = event.results[event.resultIndex];
         var commandText;
         // go over each of the 5 results and alternative results received (we've set maxAlternatives to 5 above)
@@ -152,13 +153,13 @@
                 }
               }
               // execute the matched command
-              commandsList[j].callback.apply(this, parameters);
-              invokeCallbacks(callbacks.resultMatch);
+              commandsList[j].callback.apply(this, [commandsList[j].originalPhrase, parameters]);
+              invokeCallbacks(callbacks.resultMatch, [commandsList[j].originalPhrase, event]);
               return true;
             }
           }
         }
-        invokeCallbacks(callbacks.resultNoMatch);
+        invokeCallbacks(callbacks.resultNoMatch, [commandText, event]);
         return false;
       };
 
